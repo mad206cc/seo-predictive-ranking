@@ -1,0 +1,558 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block css %}
+<style>
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        border-spacing: 0;
+    }
+    .table th, .table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+    }
+    .custom-checkbox {
+        display: none;
+        text-align: center;
+    }
+    .custom-checkbox input[type="checkbox"] {
+        display: inline-block;
+        width: 15px;
+        height: 15px;
+        margin: 0;
+    }
+    #chartContainer, #barChartContainer {
+        width: 100%;  /* Ajuster la largeur du graphique */
+        height: 300px; /* Ajuster la hauteur du graphique */
+        margin: auto;  /* Centrer le graphique */
+    }
+    .chart-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+    }
+    .slick-slider {
+        width: 80%; /* Ajuster la largeur selon votre mise en page */
+        margin: auto; /* Centrer le slider */
+    }
+    #combined-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 500px;
+    }
+
+    #lineChart {
+            width: 400px;
+            height: 200px;
+        }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+    <div class="container-fluid">
+        {% include "layout/breadcrumb.html" %}
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="card">
+                    <div class="mb-3" style="margin-top: 50px; margin-left: 70px;">
+                        <label for="keyword-filter" class="form-label">Filter by keyword</label>
+                        <select class="form-select" id="keyword-filter" style="width: 250px;">
+                            <option value="">Keywords</option>
+                            {% for keyword in unique_keywords %}
+                                <option value="{{ keyword }}">{{ keyword }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="card-header">
+                        <h5>Tableau des URLs et indicateurs</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="delete-form" method="POST" action="{% url 'delete_url_predected' %}">
+                            {% csrf_token %}
+                            <div class="table-responsive">
+                                <table class="table" id="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="custom-checkbox">
+                                                <input type="checkbox" id="header-checkbox">
+                                            </th>
+                                            <th rowspan="2">Date</th>
+                                            <th rowspan="2">URL</th>
+                                            <th rowspan="2">Keyword</th>
+                                            <th rowspan="2">Top10</th>
+                                            {% for attribute in sorted_attributes %}
+                                                <th colspan="3">{{ attribute }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                        <tr>
+                                            {% for attribute in sorted_attributes %}
+                                                <th>Valeur</th>
+                                                <th>Min</th>
+                                                <th>Max</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in data %}
+                                            <tr data-url="{{ row.Url }}" data-keyword="{{ row.Keyword }}" data-date="{{ row.date_test }}">
+                                                <td class="custom-checkbox">
+                                                    <input type="checkbox" name="ids[]" value="{{ row.id }}" class="row-checkbox">
+                                                    <input type="hidden" name="test_dates[]" value="{{ row.date_test }}">
+                                                    <input type="hidden" name="test_times[]" value="{{ row.hour_test }}">
+                                                </td>
+                                                <td>{{ row.date_test }}</td>
+                                                <td>{{ row.Url }}</td>
+                                                <td>{{ row.Keyword }}</td>
+                                                
+                                                <td>
+                                                    {% if row.Top10 %}
+                                                        Yes
+                                                    {% else %}
+                                                        No
+                                                    {% endif %}
+                                                </td>
+                                                {% for attribute in row.attributes_values %}
+                                                    <td data-attribute-name="{{ attribute.name }}">{{ attribute.value }}</td>
+                                                    <td data-attribute-name="{{ attribute.name }}">{{ attribute.min_value }}</td>
+                                                    <td data-attribute-name="{{ attribute.name }}">{{ attribute.max_value }}</td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="pagination-container">
+                                <button id="prev" class="btn btn-primary" type="button">Previous</button>
+                                <button id="next" class="btn btn-primary" type="button">Next</button>
+                                <button id="delete-toggle" class="btn btn-danger" style="margin-left: 10px;">Delete</button>
+                            </div>
+                        </form>
+  
+                        <!-- Container for Pie Chart -->
+                        <div class="card" style="margin-top: 60px;">
+                            <div class="card-body py-lg-3">
+                                <div class="chart-container">
+                                    <div id="combined-container">
+                                        <!-- Canvas for the first pie chart -->
+                                        <canvas id="chartContainer" width="400" height="400"></canvas>
+                                        <!-- Canvas for the second pie chart -->
+
+                                    </div>
+                                </div>
+                            </div>        
+                        </div>
+
+                        <script>
+                            document.addEventListener("DOMContentLoaded", function() {
+                                // Sélecteur de mots-clés dans le tableau principal
+                                const keywordFilter = document.getElementById("keyword-filter");
+                                
+                                // Initialisation du graphique
+                                const ctx = document.getElementById("chartContainer").getContext("2d");
+                                let chart = new Chart(ctx, {
+                                    type: 'pie',
+                                    data: {
+                                        labels: ['Dans le Top 10', 'Hors Top 10'],
+                                        datasets: [{
+                                            label: 'Proportion dans le Top 10',
+                                            data: [0, 0], // Données initiales
+                                            backgroundColor: ['rgba(76, 175, 80, 0.6)', 'rgba(244, 67, 54, 0.6)'], // Couleurs avec transparence
+                                            borderColor: ['rgba(56, 142, 60, 1)', 'rgba(211, 47, 47, 1)'], // Couleurs des bordures
+                                            borderWidth: 1
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        plugins: {
+                                            legend: {
+                                                position: 'top',
+                                            },
+                                            title: {
+                                            display: true,
+                                            text: 'Proportion of URLs in the Top 10 by keyword',
+                                            font: {
+                                                size: 24, // Taille de la police du titre
+                                                weight: 'bold', // Poids de la police du titre
+                                                family: 'Arial, sans-serif' // Famille de la police du titre
+                                            },
+                                            color: '#fff', // Couleur du titre
+                                            padding: {
+                                                top: 10, // Espacement au-dessus du titre
+                                                bottom: 20 // Espacement en dessous du titre
+                                            }
+                                        }
+                                        
+                                        },
+                                        maintainAspectRatio: false // Permet de ne pas maintenir le ratio
+                                    }
+                                });
+
+                                // Fonction pour mettre à jour le graphique en fonction du mot-clé sélectionné
+                                function updateChartForKeyword(keyword) {
+                                    const tableRows = document.querySelectorAll("#data-table tbody tr");
+                                    let top10Count = 0;
+                                    let nonTop10Count = 0;
+
+                                    tableRows.forEach(row => {
+                                        const rowKeyword = row.getAttribute("data-keyword");
+                                        const isInTop10 = row.querySelector('td:nth-child(5)').textContent.trim() === "Yes";
+
+                                        if (keyword === "" || rowKeyword === keyword) {
+                                            if (isInTop10) {
+                                                top10Count++;
+                                            } else {
+                                                nonTop10Count++;
+                                            }
+                                        }
+                                    });
+
+                                    chart.data.datasets[0].data = [top10Count, nonTop10Count];
+                                    chart.update();
+                                }
+
+                                // Écouteur pour le sélecteur de mots-clés
+                                keywordFilter.addEventListener("change", function() {
+                                    const selectedKeyword = keywordFilter.value;
+                                    updateChartForKeyword(selectedKeyword);
+                                    filterTableByKeyword(selectedKeyword);
+                                });
+
+                                // Initialiser le tableau avec le premier mot-clé sélectionné
+                                const initialKeyword = keywordFilter.value;
+                                updateChartForKeyword(initialKeyword);
+
+                                // Fonction pour filtrer le tableau en fonction du mot-clé sélectionné
+                                function filterTableByKeyword(keyword) {
+                                    const tableRows = document.querySelectorAll("#data-table tbody tr");
+
+                                    tableRows.forEach(function(row) {
+                                        const rowKeyword = row.getAttribute("data-keyword");
+                                        if (keyword === "" || rowKeyword === keyword) {
+                                            row.style.display = "";
+                                        } else {
+                                            row.style.display = "none";
+                                        }
+                                    });
+                                }
+                            });
+                        </script>
+                    </div>
+                </div>
+                <!--<div class="card-body">
+                    <h5>Liste des Attributs</h5>
+                    <label for="attribute-select">Sélectionner un Attribut:</label>
+                    <select id="attribute-select" class="form-select" style="width: 250px;">
+                         Les options seront ajoutées dynamiquement 
+                    </select>
+                </div>-->
+
+              
+                <div class="card" style="margin-top: 60px;">
+                    <div class="card-body py-lg-3">
+                        <div class="chart-container">
+                            <div id="combined-container">
+                                <canvas id="chartContainer2" width="400" height="400"></canvas>
+                            </div>
+                        </div>
+                    </div>        
+                </div>
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function() {
+                            // Initialisation du deuxième graphique
+                            const ctx2 = document.getElementById("chartContainer2").getContext("2d");
+            
+                            // Fonction pour mettre à jour le graphique de proportion des mots-clés
+                            function updateKeywordProportionChart() {
+                                const keywords = {};
+                                const tableRows = document.querySelectorAll("#data-table tbody tr");
+            
+                                tableRows.forEach(row => {
+                                    const rowKeyword = row.getAttribute("data-keyword");
+                                    const isInTop10 = row.querySelector('td:nth-child(5)').textContent.trim() === "Yes";
+            
+                                    // Initialisation de l'objet pour le mot-clé s'il n'existe pas encore
+                                    if (!keywords[rowKeyword]) {
+                                        keywords[rowKeyword] = { top10: 0, nonTop10: 0 };
+                                    }
+            
+                                    // Incrémentation du compteur basé sur le statut Top10
+                                    if (isInTop10) {
+                                        keywords[rowKeyword].top10++;
+                                    } else {
+                                        keywords[rowKeyword].nonTop10++;
+                                    }
+                                });
+            
+                                // Préparation des données pour le graphique
+                                const labels = Object.keys(keywords);
+                                const top10Data = labels.map(keyword => keywords[keyword].top10);
+                                const nonTop10Data = labels.map(keyword => keywords[keyword].nonTop10);
+            
+                                // Création du graphique
+                                const chart2 = new Chart(ctx2, {
+                                    type: 'bar',
+                                    data: {
+                                        labels: labels,
+                                        datasets: [
+                                            {
+                                                label: 'Dans le Top 10',
+                                                data: top10Data,
+                                                backgroundColor: 'rgba(33, 150, 243, 0.6)', // Bleu
+                                                borderColor: 'rgba(30, 136, 229, 1)',
+                                                borderWidth: 1
+                                            },
+                                            {
+                                                label: 'Hors Top 10',
+                                                data: nonTop10Data,
+                                                backgroundColor: 'rgba(255, 193, 7, 0.6)', // Jaune
+                                                borderColor: 'rgba(255, 179, 0, 1)',
+                                                borderWidth: 1
+                                            }
+                                        ]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        plugins: {
+                                            legend: {
+                                                position: 'top',
+                                            },
+                                            title: {
+                                            display: true,
+                                            text: 'Proportion of Keywords in and out of the Top 10',
+                                            font: {
+                                                size: 24, // Taille de la police du titre
+                                                weight: 'bold', // Poids de la police du titre
+                                                family: 'Arial, sans-serif' // Famille de la police du titre
+                                            },
+                                            color: '#fff', // Couleur du titre
+                                            padding: {
+                                                top: 10, // Espacement au-dessus du titre
+                                                bottom: 20 // Espacement en dessous du titre
+                                            }
+                                        }
+                                        },
+                                        maintainAspectRatio: false,
+                                        scales: {
+                                            x: {
+                                                stacked: true,
+                                            },
+                                            y: {
+                                                stacked: true,
+                                                beginAtZero: true
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+            
+                            // Initialiser le graphique avec les données actuelles
+                            updateKeywordProportionChart();
+                        });
+                    </script>
+
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<!--<script>
+document.addEventListener("DOMContentLoaded", function() {
+    function extractAttributes() {
+        const table = document.getElementById('data-table');
+        const attributeHeaders = table.querySelectorAll('thead th[colspan]');
+        const attributes = new Set();
+        
+        attributeHeaders.forEach(header => {
+            const attributeName = header.textContent.trim();
+            if (attributeName) {
+                attributes.add(attributeName);
+            }
+        });
+        
+        return Array.from(attributes);
+    }
+
+    function updateAttributeSelect() {
+        const attributes = extractAttributes();
+        const attributeSelect = document.getElementById('attribute-select');
+        attributeSelect.innerHTML = ''; // Clear existing options
+        
+        attributes.forEach(attr => {
+            const option = document.createElement('option');
+            option.value = attr;
+            option.textContent = attr;
+            attributeSelect.appendChild(option);
+        });
+    }
+
+    updateAttributeSelect();
+});
+</script>-->
+
+<script>
+   document.addEventListener("DOMContentLoaded", function () {
+    const rows = Array.from(document.querySelectorAll("#data-table tbody tr"));
+    const rowsPerPage = 10;
+    let currentPage = 1;
+    let filteredRows = rows.slice(); // Initialize filteredRows with all rows
+    let chart; // Define chart variable to hold Chart.js instance
+
+    function sortRowsByDateDesc() {
+        rows.sort((a, b) => {
+            const dateA = new Date(a.getAttribute('data-date'));
+            const dateB = new Date(b.getAttribute('data-date'));
+            return dateB - dateA;
+        });
+    }
+
+    function displayRows(page) {
+        const start = (page - 1) * rowsPerPage;
+        const end = page * rowsPerPage;
+
+        filteredRows.forEach((row, index) => {
+            if (index >= start && index < end) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.getElementById("prev").disabled = page === 1;
+        document.getElementById("next").disabled = end >= filteredRows.length;
+    }
+
+    function filterTableByKeyword(keyword) {
+        filteredRows = rows.filter(row => {
+            const rowKeyword = row.getAttribute("data-keyword");
+            return keyword === "" || rowKeyword === keyword;
+        });
+
+        currentPage = 1; // Reset to the first page
+        displayRows(currentPage);
+    }
+
+    const keywordFilter = document.getElementById("keyword-filter");
+    keywordFilter.addEventListener("change", function () {
+        const selectedKeyword = keywordFilter.value;
+        filterTableByKeyword(selectedKeyword);
+    });
+
+    sortRowsByDateDesc();
+    displayRows(currentPage);
+
+    const deleteToggleBtn = document.getElementById('delete-toggle');
+    const headerCheckbox = document.getElementById('header-checkbox');
+
+    deleteToggleBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+
+        if (selectedCheckboxes.length === 0) {
+            const checkboxes = document.querySelectorAll('.custom-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.style.display = 'table-cell';
+            });
+            deleteToggleBtn.textContent = 'Confirm Delete';
+            headerCheckbox.style.display = 'none';
+        } else {
+            const formData = new FormData();
+
+            selectedCheckboxes.forEach(checkbox => {
+                const row = checkbox.closest('tr');
+                const id = checkbox.value;
+                const date = row.querySelector('input[name="test_dates[]"]').value;
+                const time = row.querySelector('input[name="test_times[]"]').value;
+                formData.append('ids[]', id);
+                formData.append('test_dates[]', date);
+                formData.append('test_times[]', time);
+            });
+
+            fetch("{% url 'delete_url_predected' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        location.reload();
+                    } else {
+                        console.error('Erreur lors de la suppression: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur AJAX lors de la suppression: ' + error);
+                });
+
+            const checkboxes = document.querySelectorAll('.custom-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.style.display = 'none';
+            });
+            deleteToggleBtn.textContent = 'Delete';
+            headerCheckbox.checked = false;
+        }
+    });
+
+    headerCheckbox.addEventListener('change', function () {
+        const isChecked = this.checked;
+        document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+    });
+
+    // Handle case when "Confirm Delete" is clicked without any checkboxes checked
+    document.getElementById('delete-form').addEventListener('submit', function (event) {
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            const checkboxes = document.querySelectorAll('.custom-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.style.display = 'table-cell';
+            });
+            deleteToggleBtn.textContent = 'Confirm Delete';
+            headerCheckbox.style.display = 'none';
+            event.preventDefault(); // Prevent form submission if no checkboxes are checked
+        }
+    });
+});
+</script>
+{% endblock %}
+
+{% block scriptcontent %}
+<!-- Plugins JS start-->
+<script src="https://cdn.jsdelivr.net/npm/date-fns@2.28.0/dist/date-fns.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'assets/js/slick/slick.min.js' %}"></script>
+<script src="{% static 'assets/js/slick/slick.js' %}"></script>
+<script src="{% static 'assets/js/header-slick.js' %}"></script>
+<script src="{% static 'assets/js/chart/apex-chart/moment.min.js' %}"></script>
+<script src="{% static 'assets/js/chart/apex-chart/apex-chart.js' %}"></script>
+<script src="{% static 'assets/js/chart/apex-chart/stock-prices.js' %}"></script>
+<script src="{% static 'assets/js/prism/prism.min.js' %}"></script>
+<script src="{% static 'assets/js/clipboard/clipboard.min.js' %}"></script>
+<script src="{% static 'assets/js/counter/jquery.waypoints.min.js' %}"></script>
+<script src="{% static 'assets/js/counter/jquery.counterup.min.js' %}"></script>
+<script src="{% static 'assets/js/counter/counter-custom.js' %}"></script>
+<script src="{% static 'assets/js/custom-card/custom-card.js' %}"></script>
+<!-- Plugins JS Ends-->
+
+<script>
+    $(document).ready(function() {
+        if ($('.slick-slider').length) {
+            $('.slick-slider').slick();
+        }
+    });
+</script>
+{% endblock %}
