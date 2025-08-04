@@ -34,9 +34,6 @@ SECRET_KEY = 'django-insecure-v_cfoh-0m@ch0zsxw(3u5)88!t1d1p^@%8)3kr+ah_&kyk4kre
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", '.sslip.io']
 
 # Application definition

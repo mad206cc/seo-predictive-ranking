@@ -12,7 +12,7 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
 # Expose le port 8000 (celui utilisé par défaut par Django)
-EXPOSE 8484
+EXPOSE 8000
 
 # Définit la commande à exécuter lorsque le container démarre
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8484"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
