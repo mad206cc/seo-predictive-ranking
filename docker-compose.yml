@@ -3,8 +3,8 @@ version: '3.9'
 services:
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8080
+    command: python manage.py runserver 0.0.0.0:8484
     volumes:
       - .:/predective_ranking
     ports:
-      - "8080:8080"
+      - "8484:8484"
