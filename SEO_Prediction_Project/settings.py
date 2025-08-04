@@ -35,6 +35,7 @@ SECRET_KEY = 'django-insecure-v_cfoh-0m@ch0zsxw(3u5)88!t1d1p^@%8)3kr+ah_&kyk4kre
 DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", '.sslip.io']
+CSRF_TRUSTED_ORIGINS = ['http://*.sslip.io', 'https://*.sslip.io']
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
