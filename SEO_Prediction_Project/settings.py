@@ -36,12 +36,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", '.sslip.io']
 
-# Empêche Django de bloquer la session en HTTPS
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-
-# Pour éviter les problèmes de redirection avec HTTPS non géré
-SECURE_SSL_REDIRECT = False
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
 
 # Application definition
 
