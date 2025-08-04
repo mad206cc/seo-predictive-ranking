@@ -9,7 +9,7 @@ COPY . /predective_ranking/
 
 # Installe les dépendances définies dans requirements.txt
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt \
+    pip install -r requirements.txt && \
     pip install gunicorn
 
 # Expose le port 8000 (celui utilisé par défaut par Django)
