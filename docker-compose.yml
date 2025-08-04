@@ -7,4 +7,4 @@ services:
     volumes:
       - .:/predective_ranking
     ports:
-      - "8484:8000"
+      - "8000:8000"
