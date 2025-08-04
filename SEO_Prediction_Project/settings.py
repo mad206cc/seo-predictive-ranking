@@ -35,8 +35,6 @@ SECRET_KEY = 'django-insecure-v_cfoh-0m@ch0zsxw(3u5)88!t1d1p^@%8)3kr+ah_&kyk4kre
 DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", 'hk44kc40ggw0444cwcw4g400.188.165.202.62.sslip.io']
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
 
 # Application definition
 

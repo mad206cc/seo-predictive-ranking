@@ -9,10 +9,10 @@ COPY . /predective_ranking/
 
 # Installe les dépendances définies dans requirements.txt
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt && \
-    pip install gunicorn
+    pip install -r requirements.txt
 
 # Expose le port 8000 (celui utilisé par défaut par Django)
-EXPOSE 8888
-# Lance le serveur Gunicorn au lieu de runserver (beaucoup plus stable)
-CMD ["gunicorn", "--bind", "0.0.0.0:8888", "SEO_Prediction_Project.wsgi:application"]
+EXPOSE 8080
+
+# Définit la commande à exécuter lorsque le container démarre
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8080"]
