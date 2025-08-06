@@ -2,7 +2,7 @@ import pika
 import json
 
 def send_message_to_rabbitmq(queue_name, message_type, data):
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
     channel = connection.channel()
     channel.queue_declare(queue=queue_name)
     

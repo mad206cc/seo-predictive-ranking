@@ -499,7 +499,7 @@ def connect_and_consume():
     while True:
         try:
             # Connexion à RabbitMQ
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost', heartbeat=600, blocked_connection_timeout=300))
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq', heartbeat=600, blocked_connection_timeout=300))
             channel = connection.channel()
             
             # Purger la file d'attente 'keyword_queue' avant de commencer à consommer

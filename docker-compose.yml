@@ -8,3 +8,16 @@ services:
       - .:/predective_ranking
     ports:
       - "8000:8000"
+    depends_on:
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq  # très important !
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"       # Port utilisé par l'app pour se connecter
+      - "15672:15672"     # Interface d'administration RabbitMQ
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
